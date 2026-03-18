@@ -104,6 +104,31 @@ export const getById = query({
   },
 })
 
+export const getStatsForCurrentUser = query({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity()
+    if (!identity) return null
+    const projects = await ctx.db
+      .query('projects')
+      .withIndex('byUserId', (q) => q.eq('userId', identity.subject))
+      .collect()
+
+    const statusCounts = { pending: 0, processing: 0, done: 0, error: 0 }
+    for (const p of projects) statusCounts[p.status]++
+
+    // Projects created in last 30 days
+    const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000
+    const recentCount = projects.filter((p) => p._creationTime >= thirtyDaysAgo).length
+
+    return {
+      total: projects.length,
+      recentCount,
+      ...statusCounts,
+    }
+  },
+})
+
 // ─── Internal mutations ───────────────────────────────────────────────────────
 
 export const updateStatus = internalMutation({

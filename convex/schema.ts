@@ -44,9 +44,11 @@ export default defineSchema({
     formatType: v.string(),           // e.g. "twitter_thread", "newsletter"
     content: v.string(),
     aiProvider: v.union(v.literal('claude'), v.literal('grok')),
+    starred: v.optional(v.boolean()), // user-favourited output
   })
     .index('byProjectId', ['projectId'])
-    .index('byUserId', ['userId']),
+    .index('byUserId', ['userId'])
+    .index('byUserIdStarred', ['userId', 'starred']),
 
   // ─── Brand Voice (Pro only) ─────────────────────────────────────────────────
   brandVoice: defineTable({

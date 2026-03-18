@@ -74,6 +74,22 @@ export const upsertFromClerk = internalMutation({
   },
 })
 
+// ─── Update display name ────────────────────────────────────────────────────
+
+export const updateProfile = mutation({
+  args: { name: v.string() },
+  handler: async (ctx, { name }) => {
+    const identity = await ctx.auth.getUserIdentity()
+    if (!identity) throw new Error('Unauthenticated')
+    const user = await ctx.db
+      .query('users')
+      .withIndex('byExternalId', (q) => q.eq('externalId', identity.subject))
+      .unique()
+    if (!user) throw new Error('User not found')
+    await ctx.db.patch(user._id, { name: name.trim() })
+  },
+})
+
 export const deleteFromClerk = internalMutation({
   args: { clerkUserId: v.string() },
   handler: async (ctx, { clerkUserId }) => {

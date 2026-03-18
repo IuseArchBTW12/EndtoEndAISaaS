@@ -8,6 +8,7 @@ export interface ConvexOutput {
   content: string
   aiProvider: string
   userId: string
+  starred?: boolean
 }
 
 export interface ConvexProject {

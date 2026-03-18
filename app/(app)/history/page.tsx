@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { useQuery } from 'convex/react'
+import { useMutation, useQuery } from 'convex/react'
 import { api } from '@/convex/_generated/api'
 import { type Id } from '@/convex/_generated/dataModel'
 import { FORMATS } from '@/convex/prompts'
@@ -12,16 +12,29 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Separator } from '@/components/ui/separator'
 import { cn } from '@/lib/utils'
 import type { ConvexOutput, ConvexProject } from '@/lib/types'
-import { ChevronDown, ChevronRight, Clock, Copy, Check } from 'lucide-react'
+import { ChevronDown, ChevronRight, Clock, Copy, Check, Star, Download } from 'lucide-react'
+import { toast } from 'sonner'
 
-function OutputItem({ output }: { output: { formatType: string; content: string; aiProvider: string } }) {
+function OutputItem({ output }: { output: ConvexOutput }) {
   const [copied, setCopied] = useState(false)
+  const [starred, setStarred] = useState(output.starred ?? false)
+  const toggleStar = useMutation(api.outputs.toggleStar)
   const format = FORMATS.find((f) => f.id === output.formatType)
 
   const copy = () => {
     navigator.clipboard.writeText(output.content)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
+  }
+
+  const handleStar = async () => {
+    try {
+      const next = await toggleStar({ outputId: output._id as Id<'outputs'> })
+      setStarred(next)
+      toast.success(next ? 'Added to Favourites' : 'Removed from Favourites')
+    } catch {
+      toast.error('Failed to update favourite')
+    }
   }
 
   return (
@@ -31,10 +44,21 @@ function OutputItem({ output }: { output: { formatType: string; content: string;
           <span>{format?.icon}</span>
           {format?.label ?? output.formatType}
         </span>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1">
           <Badge variant="outline" className="text-[10px]">
             {output.aiProvider === 'claude' ? '🤖 Claude' : '⚡ Grok'}
           </Badge>
+          <Button
+            size="icon"
+            variant="ghost"
+            className={cn(
+              'size-6 transition-all',
+              starred ? 'text-yellow-500' : 'opacity-0 group-hover:opacity-100',
+            )}
+            onClick={handleStar}
+          >
+            <Star className={cn('size-3', starred && 'fill-yellow-400')} />
+          </Button>
           <Button size="icon" variant="ghost" className="size-6" onClick={copy}>
             {copied ? <Check className="size-3 text-green-500" /> : <Copy className="size-3" />}
           </Button>
@@ -47,7 +71,7 @@ function OutputItem({ output }: { output: { formatType: string; content: string;
   )
 }
 
-function ProjectRow({ project }: { project: { _id: Id<'projects'>; title: string; status: string; _creationTime: number; selectedFormats: string[] } }) {
+function ProjectRow({ project }: { project: ConvexProject }) {
   const [expanded, setExpanded] = useState(false)
   const outputs = useQuery(
     api.outputs.getForProject,
@@ -59,6 +83,26 @@ function ProjectRow({ project }: { project: { _id: Id<'projects'>; title: string
     processing: 'bg-blue-100 text-blue-700',
     pending: 'bg-muted text-muted-foreground',
     error: 'bg-red-100 text-red-700',
+  }
+
+  const exportAsMarkdown = () => {
+    if (!outputs || outputs.length === 0) return
+    const lines: string[] = [`# ${project.title}`, `Generated: ${new Date(project._creationTime).toLocaleDateString()}`, '']
+    for (const o of outputs as ConvexOutput[]) {
+      const fmt = FORMATS.find((f) => f.id === o.formatType)
+      lines.push(`## ${fmt?.icon ?? ''} ${fmt?.label ?? o.formatType}`)
+      lines.push('')
+      lines.push(o.content)
+      lines.push('')
+      lines.push('---')
+      lines.push('')
+    }
+    const blob = new Blob([lines.join('\n')], { type: 'text/markdown' })
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(blob)
+    a.download = `${project.title.slice(0, 40).replace(/\s+/g, '-')}.md`
+    a.click()
+    toast.success('Exported as Markdown')
   }
 
   return (
@@ -77,6 +121,17 @@ function ProjectRow({ project }: { project: { _id: Id<'projects'>; title: string
             <CardTitle className="text-sm font-medium">{project.title}</CardTitle>
           </div>
           <div className="flex items-center gap-2">
+            {expanded && outputs && outputs.length > 0 && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-6 gap-1 px-2 text-xs"
+                onClick={(e) => { e.stopPropagation(); exportAsMarkdown() }}
+              >
+                <Download className="size-3" />
+                Export
+              </Button>
+            )}
             <Badge className={cn('text-xs capitalize', statusColors[project.status])} variant="secondary">
               {project.status}
             </Badge>
@@ -112,7 +167,7 @@ function ProjectRow({ project }: { project: { _id: Id<'projects'>; title: string
             </p>
           ) : (
             <div className="space-y-3">
-              {outputs.map((output: ConvexOutput) => (
+              {(outputs as ConvexOutput[]).map((output) => (
                 <OutputItem key={output._id} output={output} />
               ))}
             </div>
@@ -131,7 +186,7 @@ export default function HistoryPage() {
       <div className="mb-6">
         <h1 className="text-2xl font-bold">History</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          All your past repurposing projects
+          All your past repurposing projects — expand any row to star outputs or export as Markdown.
         </p>
       </div>
 

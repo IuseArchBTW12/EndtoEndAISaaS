@@ -20,14 +20,18 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from '@/components/ui/sidebar'
-import { LayoutDashboard, History, Mic2, Zap, Crown } from 'lucide-react'
+import { LayoutDashboard, History, Mic2, Zap, Crown, BarChart3, BookOpen, Star, Settings } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { ThemeToggle } from '@/components/ThemeToggle'
 
 const navItems = [
   { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+  { label: 'Templates', href: '/templates', icon: BookOpen },
   { label: 'History', href: '/history', icon: History },
+  { label: 'Favourites', href: '/favourites', icon: Star },
+  { label: 'Analytics', href: '/analytics', icon: BarChart3 },
   { label: 'Brand Voice', href: '/brand-voice', icon: Mic2, proOnly: true },
+  { label: 'Settings', href: '/settings', icon: Settings },
 ]
 
 function AppSidebar() {

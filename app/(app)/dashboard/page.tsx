@@ -7,14 +7,16 @@ import { type Id } from '@/convex/_generated/dataModel'
 import { FORMATS } from '@/convex/prompts'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
+import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { toast } from 'sonner'
-import { Zap, Copy, Check, AlertCircle, Loader2, Sparkles } from 'lucide-react'
+import { Zap, Copy, Check, AlertCircle, Loader2, Sparkles, Star, Link2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { ConvexOutput } from '@/lib/types'
+import { useSearchParams } from 'next/navigation'
 
 // ─── Format selector ──────────────────────────────────────────────────────────
 
@@ -61,14 +63,26 @@ function FormatCheckbox({
 
 // ─── Single output card ───────────────────────────────────────────────────────
 
-function OutputCard({ output }: { output: { formatType: string; content: string; aiProvider: string } }) {
+function OutputCard({ output }: { output: ConvexOutput }) {
   const [copied, setCopied] = useState(false)
+  const [starred, setStarred] = useState(output.starred ?? false)
+  const toggleStar = useMutation(api.outputs.toggleStar)
   const format = FORMATS.find((f) => f.id === output.formatType)
 
   const copy = () => {
     navigator.clipboard.writeText(output.content)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
+  }
+
+  const handleStar = async () => {
+    try {
+      const next = await toggleStar({ outputId: output._id as Id<'outputs'> })
+      setStarred(next)
+      toast.success(next ? 'Added to Favourites' : 'Removed from Favourites')
+    } catch {
+      toast.error('Failed to update favourite')
+    }
   }
 
   return (
@@ -78,10 +92,22 @@ function OutputCard({ output }: { output: { formatType: string; content: string;
           <span>{format?.icon}</span>
           {format?.label ?? output.formatType}
         </CardTitle>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1">
           <Badge variant="outline" className="text-[10px]">
             {output.aiProvider === 'claude' ? '🤖 Claude' : '⚡ Grok'}
           </Badge>
+          <Button
+            size="icon"
+            variant="ghost"
+            className={cn(
+              'size-7 transition-all',
+              starred ? 'text-yellow-500' : 'opacity-0 group-hover:opacity-100',
+            )}
+            onClick={handleStar}
+            title={starred ? 'Remove from Favourites' : 'Add to Favourites'}
+          >
+            <Star className={cn('size-3.5', starred && 'fill-yellow-400')} />
+          </Button>
           <Button
             size="icon"
             variant="ghost"
@@ -110,11 +136,53 @@ function OutputCard({ output }: { output: { formatType: string; content: string;
 export default function DashboardPage() {
   const user = useQuery(api.users.getCurrentUser)
   const createProject = useMutation(api.projects.createProject)
+  const searchParams = useSearchParams()
 
   const [sourceContent, setSourceContent] = useState('')
   const [selectedFormats, setSelectedFormats] = useState<string[]>(['twitter_thread', 'linkedin_post', 'key_takeaways'])
   const [activeProjectId, setActiveProjectId] = useState<Id<'projects'> | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [inputTab, setInputTab] = useState<'text' | 'url'>('text')
+  const [urlInput, setUrlInput] = useState('')
+  const [isScraping, setIsScraping] = useState(false)
+
+  // Load template from sessionStorage if redirected from Templates page
+  useEffect(() => {
+    if (searchParams.get('template') === '1') {
+      const raw = sessionStorage.getItem('cf_template')
+      if (raw) {
+        try {
+          const tpl = JSON.parse(raw) as { content: string; formats: string[]; title: string }
+          setSourceContent(tpl.content)
+          setSelectedFormats(tpl.formats)
+          sessionStorage.removeItem('cf_template')
+          toast.success(`Template "${tpl.title}" loaded — edit it then hit Repurpose!`)
+        } catch { /* ignore */ }
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const fetchFromUrl = async () => {
+    if (!urlInput.trim()) return toast.error('Enter a URL first.')
+    setIsScraping(true)
+    try {
+      const res = await fetch('/api/scrape', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: urlInput.trim() }),
+      })
+      const data = await res.json() as { text?: string; title?: string; error?: string; charCount?: number }
+      if (!res.ok || data.error) throw new Error(data.error ?? 'Scrape failed')
+      setSourceContent(data.text ?? '')
+      setInputTab('text')
+      toast.success(`Fetched ${(data.charCount ?? 0).toLocaleString()} chars from "${data.title ?? urlInput}"`)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to fetch URL')
+    } finally {
+      setIsScraping(false)
+    }
+  }
 
   // Real-time: get current project status
   const activeProject = useQuery(
@@ -198,18 +266,76 @@ export default function DashboardPage() {
         <div className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Source Content</CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base">Source Content</CardTitle>
+                <div className="flex gap-1 rounded-lg border p-0.5 text-xs">
+                  <button
+                    type="button"
+                    onClick={() => setInputTab('text')}
+                    className={cn(
+                      'rounded-md px-3 py-1 transition-colors',
+                      inputTab === 'text' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground',
+                    )}
+                  >
+                    Paste Text
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setInputTab('url')}
+                    className={cn(
+                      'flex items-center gap-1 rounded-md px-3 py-1 transition-colors',
+                      inputTab === 'url' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground',
+                    )}
+                  >
+                    <Link2 className="size-3" />
+                    URL
+                  </button>
+                </div>
+              </div>
             </CardHeader>
             <CardContent>
-              <Textarea
-                placeholder="Paste your blog post, YouTube transcript, podcast notes, or any long-form content here…"
-                className="min-h-[200px] resize-none font-mono text-sm"
-                value={sourceContent}
-                onChange={(e) => setSourceContent(e.target.value)}
-              />
-              <p className="mt-2 text-right text-xs text-muted-foreground">
-                {sourceContent.length.toLocaleString()} characters
-              </p>
+              {inputTab === 'url' ? (
+                <div className="space-y-3">
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="https://yourblog.com/post-title"
+                      value={urlInput}
+                      onChange={(e) => setUrlInput(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && fetchFromUrl()}
+                      className="font-mono text-sm"
+                    />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={fetchFromUrl}
+                      disabled={isScraping}
+                      className="shrink-0"
+                    >
+                      {isScraping ? <Loader2 className="size-4 animate-spin" /> : 'Fetch'}
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Paste a URL to a blog post, article, or web page — we'll extract the text automatically.
+                  </p>
+                  {sourceContent && (
+                    <div className="rounded-md bg-green-500/10 px-3 py-2 text-xs text-green-700 dark:text-green-400">
+                      ✓ Content fetched ({sourceContent.length.toLocaleString()} chars) — switch to Paste Text to review or edit it.
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <>
+                  <Textarea
+                    placeholder="Paste your blog post, YouTube transcript, podcast notes, or any long-form content here…"
+                    className="min-h-[200px] resize-none font-mono text-sm"
+                    value={sourceContent}
+                    onChange={(e) => setSourceContent(e.target.value)}
+                  />
+                  <p className="mt-2 text-right text-xs text-muted-foreground">
+                    {sourceContent.length.toLocaleString()} characters
+                  </p>
+                </>
+              )}
             </CardContent>
           </Card>
 
