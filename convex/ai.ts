@@ -57,8 +57,9 @@ export const repurposeContent = internalAction({
     userId: v.string(),
     sourceContent: v.string(),
     selectedFormats: v.array(v.string()),
+    tone: v.optional(v.string()),
   },
-  handler: async (ctx, { projectId, userId, sourceContent, selectedFormats }) => {
+  handler: async (ctx, { projectId, userId, sourceContent, selectedFormats, tone }) => {
     // Mark project as processing
     await ctx.runMutation(internal.projects.updateStatus, {
       projectId,
@@ -86,6 +87,7 @@ export const repurposeContent = internalAction({
               format.id as FormatType,
               sourceContent,
               brandVoice ?? undefined,
+              tone,
             )
             const content =
               format.provider === 'claude'

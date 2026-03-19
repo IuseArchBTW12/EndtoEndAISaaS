@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useMutation, useQuery } from 'convex/react'
 import { api } from '@/convex/_generated/api'
 import { type Id } from '@/convex/_generated/dataModel'
-import { FORMATS } from '@/convex/prompts'
+import { FORMATS, TONE_LABELS } from '@/convex/prompts'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Input } from '@/components/ui/input'
@@ -145,6 +145,7 @@ export default function DashboardPage() {
   const [inputTab, setInputTab] = useState<'text' | 'url'>('text')
   const [urlInput, setUrlInput] = useState('')
   const [isScraping, setIsScraping] = useState(false)
+  const [tone, setTone] = useState<string>('conversational')
 
   // Load template from sessionStorage if redirected from Templates page
   useEffect(() => {
@@ -222,6 +223,7 @@ export default function DashboardPage() {
         sourceType: 'text',
         sourceContent,
         selectedFormats,
+        tone,
       })
       setActiveProjectId(projectId)
     } catch (err) {
@@ -363,6 +365,32 @@ export default function DashboardPage() {
                   to unlock all formats
                 </p>
               )}
+            </CardContent>
+          </Card>
+
+          {/* ── Tone selector ── */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Writing Tone</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 gap-2">
+                {Object.entries(TONE_LABELS).map(([key, label]) => (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => setTone(key)}
+                    className={cn(
+                      'rounded-lg border px-3 py-2 text-left text-sm transition-all',
+                      tone === key
+                        ? 'border-primary bg-primary/5 ring-1 ring-primary'
+                        : 'border-border hover:border-primary/50',
+                    )}
+                  >
+                    <span className="font-medium">{label}</span>
+                  </button>
+                ))}
+              </div>
             </CardContent>
           </Card>
 

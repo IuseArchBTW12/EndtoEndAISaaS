@@ -20,7 +20,7 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from '@/components/ui/sidebar'
-import { LayoutDashboard, History, Mic2, Zap, Crown, BarChart3, BookOpen, Star, Settings } from 'lucide-react'
+import { LayoutDashboard, History, Mic2, Zap, Crown, BarChart3, BookOpen, Star, Settings, ScrollText } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { ThemeToggle } from '@/components/ThemeToggle'
 
@@ -32,6 +32,7 @@ const navItems = [
   { label: 'Analytics', href: '/analytics', icon: BarChart3 },
   { label: 'Brand Voice', href: '/brand-voice', icon: Mic2, proOnly: true },
   { label: 'Settings', href: '/settings', icon: Settings },
+  { label: 'Changelog', href: '/changelog', icon: ScrollText },
 ]
 
 function AppSidebar() {

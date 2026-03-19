@@ -114,16 +114,35 @@ export const TIER_LIMITS: Record<string, number> = {
 
 // ─── Prompt builders ──────────────────────────────────────────────────────────
 
+export const TONE_LABELS: Record<string, string> = {
+  professional: 'Professional',
+  conversational: 'Conversational',
+  witty: 'Witty & Bold',
+  educational: 'Educational',
+}
+
+const TONE_INSTRUCTIONS: Record<string, string> = {
+  professional: 'TONE: Formal, authoritative, and polished. Use data, avoid colloquialisms, write for business professionals.',
+  conversational: 'TONE: Warm, casual, and personal — like talking to a close friend. Use contractions, short sentences, and everyday language.',
+  witty: 'TONE: Witty, bold, and punchy. Use clever angles, light humour, and provocative statements. Make people stop scrolling.',
+  educational: 'TONE: Clear, detailed, and structured for learning. Define terms, use examples, organise with clear hierarchy.',
+}
+
 export function buildPrompt(
   format: FormatType,
   sourceContent: string,
   brandVoice?: string,
+  tone?: string,
 ): string {
   const voiceInstructions = brandVoice
     ? `\n\nBRAND VOICE GUIDELINES:\n${brandVoice}\nApply this voice throughout your response.\n`
     : ''
 
-  const base = `You are an expert content strategist and copywriter.${voiceInstructions}
+  const toneInstruction = tone && TONE_INSTRUCTIONS[tone]
+    ? `\n\n${TONE_INSTRUCTIONS[tone]}\n`
+    : ''
+
+  const base = `You are an expert content strategist and copywriter.${voiceInstructions}${toneInstruction}
 
 SOURCE CONTENT:
 ${sourceContent}

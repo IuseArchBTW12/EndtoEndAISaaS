@@ -34,6 +34,7 @@ export default defineSchema({
     ),
     errorMessage: v.optional(v.string()),
     selectedFormats: v.array(v.string()),
+    tone: v.optional(v.string()),      // writing tone: professional | conversational | witty | educational
   })
     .index('byUserId', ['userId']),
 

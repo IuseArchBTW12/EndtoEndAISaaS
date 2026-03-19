@@ -11,8 +11,9 @@ export const createProject = mutation({
     sourceType: v.union(v.literal('text'), v.literal('url')),
     sourceContent: v.string(),
     selectedFormats: v.array(v.string()),
+    tone: v.optional(v.string()),
   },
-  handler: async (ctx, { title, sourceType, sourceContent, selectedFormats }) => {
+  handler: async (ctx, { title, sourceType, sourceContent, selectedFormats, tone }) => {
     const identity = await ctx.auth.getUserIdentity()
     if (!identity) throw new Error('Unauthenticated')
 
@@ -49,6 +50,7 @@ export const createProject = mutation({
       sourceContent,
       status: 'pending',
       selectedFormats,
+      tone,
     })
 
     // Increment run counter
@@ -62,6 +64,7 @@ export const createProject = mutation({
       userId: identity.subject,
       sourceContent,
       selectedFormats,
+      tone,
     })
 
     return projectId
