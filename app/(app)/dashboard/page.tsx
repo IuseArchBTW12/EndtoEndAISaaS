@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useMutation, useQuery } from 'convex/react'
 import { api } from '@/convex/_generated/api'
 import { type Id } from '@/convex/_generated/dataModel'
@@ -133,7 +133,7 @@ function OutputCard({ output }: { output: ConvexOutput }) {
 
 // ─── Main dashboard page ──────────────────────────────────────────────────────
 
-export default function DashboardPage() {
+function DashboardPageInner() {
   const user = useQuery(api.users.getCurrentUser)
   const createProject = useMutation(api.projects.createProject)
   const searchParams = useSearchParams()
@@ -468,5 +468,13 @@ export default function DashboardPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function DashboardPage() {
+  return (
+    <Suspense>
+      <DashboardPageInner />
+    </Suspense>
   )
 }
